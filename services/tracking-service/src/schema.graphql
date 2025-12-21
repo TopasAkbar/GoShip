@@ -1,0 +1,15 @@
+type Query {
+  trackPackage(trackingNumber: String!): TrackingResponse
+}
+
+type TrackingResponse {
+  trackingNumber: String!
+  status: String!
+  location: String!
+  updatedAt: String!
+}
+
+
+
+
+

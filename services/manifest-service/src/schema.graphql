@@ -1,0 +1,16 @@
+type Mutation {
+  generateManifest(orderId: String!, destination: String!): ManifestResponse!
+}
+
+type ManifestResponse {
+  id: Int!
+  orderId: String!
+  trackingNumber: String!
+  barcode: String!
+  createdAt: String!
+}
+
+
+
+
+

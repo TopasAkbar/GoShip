@@ -1,0 +1,223 @@
+version: '3.8'
+
+services:
+  # Tariff Service
+  tariff-service:
+    build: ./services/tariff-service
+    container_name: goship-tariff
+    ports:
+      - "4001:4001"
+    environment:
+      - NODE_ENV=development
+      - PORT=4001
+      - DB_HOST=tariff-db
+      - DB_PORT=5432
+      - DB_NAME=tariff_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+    depends_on:
+      - tariff-db
+    networks:
+      - goship-network
+
+  tariff-db:
+    image: postgres:15-alpine
+    container_name: goship-tariff-db
+    environment:
+      - POSTGRES_DB=tariff_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - tariff-db-data:/var/lib/postgresql/data
+    networks:
+      - goship-network
+
+  # Tracking Service
+  tracking-service:
+    build: ./services/tracking-service
+    container_name: goship-tracking
+    ports:
+      - "4002:4002"
+    environment:
+      - NODE_ENV=development
+      - PORT=4002
+      - DB_HOST=tracking-db
+      - DB_PORT=5432
+      - DB_NAME=tracking_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+    depends_on:
+      - tracking-db
+    networks:
+      - goship-network
+
+  tracking-db:
+    image: postgres:15-alpine
+    container_name: goship-tracking-db
+    environment:
+      - POSTGRES_DB=tracking_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - tracking-db-data:/var/lib/postgresql/data
+    networks:
+      - goship-network
+
+  # Courier Service
+  courier-service:
+    build: ./services/courier-service
+    container_name: goship-courier
+    ports:
+      - "4003:4003"
+    environment:
+      - NODE_ENV=development
+      - PORT=4003
+      - DB_HOST=courier-db
+      - DB_PORT=5432
+      - DB_NAME=courier_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+    depends_on:
+      - courier-db
+    networks:
+      - goship-network
+
+  courier-db:
+    image: postgres:15-alpine
+    container_name: goship-courier-db
+    environment:
+      - POSTGRES_DB=courier_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - courier-db-data:/var/lib/postgresql/data
+    networks:
+      - goship-network
+
+  # Area Service
+  area-service:
+    build: ./services/area-service
+    container_name: goship-area
+    ports:
+      - "4004:4004"
+    environment:
+      - NODE_ENV=development
+      - PORT=4004
+      - DB_HOST=area-db
+      - DB_PORT=5432
+      - DB_NAME=area_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+    depends_on:
+      - area-db
+    networks:
+      - goship-network
+
+  area-db:
+    image: postgres:15-alpine
+    container_name: goship-area-db
+    environment:
+      - POSTGRES_DB=area_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - area-db-data:/var/lib/postgresql/data
+    networks:
+      - goship-network
+
+  # Manifest Service
+  manifest-service:
+    build: ./services/manifest-service
+    container_name: goship-manifest
+    ports:
+      - "4005:4005"
+    environment:
+      - NODE_ENV=development
+      - PORT=4005
+      - DB_HOST=manifest-db
+      - DB_PORT=5432
+      - DB_NAME=manifest_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+    depends_on:
+      - manifest-db
+    networks:
+      - goship-network
+
+  manifest-db:
+    image: postgres:15-alpine
+    container_name: goship-manifest-db
+    environment:
+      - POSTGRES_DB=manifest_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - manifest-db-data:/var/lib/postgresql/data
+    networks:
+      - goship-network
+
+  # Operational Analytics Service
+  analytics-service:
+    build: ./services/analytics-service
+    container_name: goship-analytics
+    ports:
+      - "4006:4006"
+    environment:
+      - NODE_ENV=development
+      - PORT=4006
+      - DB_HOST=analytics-db
+      - DB_PORT=5432
+      - DB_NAME=analytics_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - TRACKING_DB_HOST=tracking-db
+      - TRACKING_DB_PORT=5432
+      - TRACKING_DB_NAME=tracking_db
+      - TRACKING_DB_USER=postgres
+      - TRACKING_DB_PASSWORD=postgres
+      - COURIER_DB_HOST=courier-db
+      - COURIER_DB_PORT=5432
+      - COURIER_DB_NAME=courier_db
+      - COURIER_DB_USER=postgres
+      - COURIER_DB_PASSWORD=postgres
+      - MANIFEST_DB_HOST=manifest-db
+      - MANIFEST_DB_PORT=5432
+      - MANIFEST_DB_NAME=manifest_db
+      - MANIFEST_DB_USER=postgres
+      - MANIFEST_DB_PASSWORD=postgres
+    depends_on:
+      - analytics-db
+      - tracking-db
+      - courier-db
+      - manifest-db
+    networks:
+      - goship-network
+
+  analytics-db:
+    image: postgres:15-alpine
+    container_name: goship-analytics-db
+    environment:
+      - POSTGRES_DB=analytics_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - analytics-db-data:/var/lib/postgresql/data
+    networks:
+      - goship-network
+
+networks:
+  goship-network:
+    driver: bridge
+
+volumes:
+  tariff-db-data:
+  tracking-db-data:
+  courier-db-data:
+  area-db-data:
+  manifest-db-data:
+  analytics-db-data:
+
+
+
+
+

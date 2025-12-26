@@ -1,0 +1,213 @@
+# Auth
+type Query {
+  me: Admin
+}
+
+type Mutation {
+  login(username: String!, password: String!): AuthResponse
+  register(username: String!, password: String!): AuthResponse
+}
+
+type Admin {
+  id: ID!
+  username: String!
+  role: String!
+  createdAt: String!
+}
+
+type AuthResponse {
+  success: Boolean!
+  token: String
+  admin: Admin
+  message: String
+}
+
+# Area
+extend type Query {
+  provinsi: [Provinsi!]!
+  kota(provinsiId: ID!): [Kota!]!
+  kecamatan(kotaId: ID!): [Kecamatan!]!
+  validateKodePos(kodePos: String!): KodePosValidation
+}
+
+extend type Mutation {
+  createProvinsi(nama: String!): Provinsi!
+  createKota(provinsiId: ID!, nama: String!): Kota!
+  createKecamatan(kotaId: ID!, nama: String!, kodePos: String!): Kecamatan!
+}
+
+type Provinsi {
+  id: ID!
+  nama: String!
+  kotas: [Kota!]!
+}
+
+type Kota {
+  id: ID!
+  nama: String!
+  provinsiId: ID!
+  kecamatans: [Kecamatan!]!
+}
+
+type Kecamatan {
+  id: ID!
+  nama: String!
+  kodePos: String!
+  kotaId: ID!
+}
+
+type KodePosValidation {
+  valid: Boolean!
+  kecamatan: Kecamatan
+  message: String
+}
+
+# Tariff
+extend type Query {
+  calculateOngkir(kotaAsal: ID!, kotaTujuan: ID!, berat: Float!): OngkirResult!
+  getShippingOptions(kotaAsal: ID!, kotaTujuan: ID!, berat: Float!): [ShippingOption!]!
+}
+
+extend type Mutation {
+  createTariff(kotaAsal: ID!, kotaTujuan: ID!, metodePengiriman: String!, hargaPerKg: Float!, hargaMinimum: Float!): Tariff!
+}
+
+type OngkirResult {
+  totalOngkir: Float!
+  breakdown: [OngkirBreakdown!]!
+}
+
+type OngkirBreakdown {
+  metodePengiriman: String!
+  harga: Float!
+  estimasiHari: Int!
+}
+
+type ShippingOption {
+  metodePengiriman: String!
+  hargaOngkir: Float!
+  estimasiHari: Int!
+}
+
+type Tariff {
+  id: ID!
+  kotaAsal: ID!
+  kotaTujuan: ID!
+  metodePengiriman: String!
+  hargaPerKg: Float!
+  hargaMinimum: Float!
+  createdAt: String!
+}
+
+# Manifest
+extend type Query {
+  shipments: [Shipment!]!
+  shipment(id: ID!): Shipment
+  shipmentByOrderId(orderId: ID!): Shipment
+}
+
+extend type Mutation {
+  createShipmentFromMarketplace(
+    orderId: ID!
+    alamatPengiriman: String!
+    alamatPenjemputan: String!
+    berat: Float!
+    kotaAsal: ID!
+    kotaTujuan: ID!
+  ): Shipment!
+  requestResi(orderId: ID!): ResiResponse!
+  updateShipmentStatus(id: ID!, status: String!): Shipment!
+}
+
+type Shipment {
+  id: ID!
+  orderId: ID!
+  nomorResi: String
+  alamatPengiriman: String!
+  alamatPenjemputan: String!
+  berat: Float!
+  kotaAsal: ID!
+  kotaTujuan: ID!
+  status: String!
+  ongkir: Float
+  metodePengiriman: String
+  createdAt: String!
+  updatedAt: String!
+}
+
+type ResiResponse {
+  success: Boolean!
+  nomorResi: String
+  status: String
+  message: String
+}
+
+# Courier
+extend type Query {
+  couriers: [Courier!]!
+  courier(id: ID!): Courier
+}
+
+extend type Mutation {
+  createCourier(nama: String!, noHp: String!, kendaraan: String!): Courier!
+  updateCourier(id: ID!, nama: String, noHp: String, kendaraan: String, status: String): Courier!
+  deleteCourier(id: ID!): Boolean!
+}
+
+type Courier {
+  id: ID!
+  nama: String!
+  noHp: String!
+  kendaraan: String!
+  status: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+# Tracking
+extend type Query {
+  trackingByResi(resiNumber: String!): Tracking!
+}
+
+extend type Mutation {
+  createTracking(
+    resiNumber: String!
+    orderId: ID!
+  ): Tracking!
+  
+  updateTrackingStatus(
+    resiNumber: String!
+    status: TrackingStatus!
+    description: String!
+    location: String!
+  ): Tracking!
+}
+
+type Tracking {
+  id: ID!
+  resiNumber: String!
+  orderId: ID!
+  currentStatus: TrackingStatus!
+  createdAt: String!
+  histories: [TrackingHistory!]!
+}
+
+type TrackingHistory {
+  id: ID!
+  status: TrackingStatus!
+  description: String!
+  location: String!
+  timestamp: String!
+}
+
+enum TrackingStatus {
+  CREATED
+  PICKED_UP
+  IN_TRANSIT
+  ARRIVED_AT_HUB
+  OUT_FOR_DELIVERY
+  DELIVERED
+}
+
+
+

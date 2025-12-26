@@ -1,0 +1,42 @@
+type Query {
+  provinsi: [Provinsi!]!
+  kota(provinsiId: ID!): [Kota!]!
+  kecamatan(kotaId: ID!): [Kecamatan!]!
+  validateKodePos(kodePos: String!): KodePosValidation
+}
+
+type Mutation {
+  createProvinsi(nama: String!): Provinsi!
+  createKota(provinsiId: ID!, nama: String!): Kota!
+  createKecamatan(kotaId: ID!, nama: String!, kodePos: String!): Kecamatan!
+}
+
+type Provinsi {
+  id: ID!
+  nama: String!
+  kotas: [Kota!]!
+}
+
+type Kota {
+  id: ID!
+  nama: String!
+  provinsiId: ID!
+  kecamatans: [Kecamatan!]!
+}
+
+type Kecamatan {
+  id: ID!
+  nama: String!
+  kodePos: String!
+  kotaId: ID!
+}
+
+type KodePosValidation {
+  valid: Boolean!
+  kecamatan: Kecamatan
+  message: String
+}
+
+
+
+

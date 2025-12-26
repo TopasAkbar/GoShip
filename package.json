@@ -1,0 +1,25 @@
+{
+  "name": "goship",
+  "version": "1.0.0",
+  "description": "GoShip - Microservices Logistics System",
+  "scripts": {
+    "start:gateway": "cd services/api-gateway && node index.js",
+    "start:auth": "cd services/auth-service && node index.js",
+    "start:area": "cd services/area-service && node index.js",
+    "start:tariff": "cd services/tariff-service && node index.js",
+    "start:manifest": "cd services/manifest-service && node index.js",
+    "start:courier": "cd services/courier-service && node index.js",
+    "start:tracking": "cd services/tracking-service && node index.js",
+    "start:all": "concurrently \"npm run start:gateway\" \"npm run start:auth\" \"npm run start:area\" \"npm run start:tariff\" \"npm run start:manifest\" \"npm run start:courier\" \"npm run start:tracking\""
+  },
+  "keywords": ["logistics", "microservices", "graphql"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+
+
+
+

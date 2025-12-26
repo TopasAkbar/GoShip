@@ -1,0 +1,245 @@
+version: '3.8'
+
+services:
+  # Databases
+  db_auth:
+    image: postgres:15-alpine
+    container_name: goship_db_auth
+    environment:
+      POSTGRES_DB: db_logistics_auth
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_auth_data:/var/lib/postgresql/data
+    networks:
+      - goship-network
+
+  db_area:
+    image: postgres:15-alpine
+    container_name: goship_db_area
+    environment:
+      POSTGRES_DB: db_logistics_area
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_area_data:/var/lib/postgresql/data
+    networks:
+      - goship-network
+
+  db_tariff:
+    image: postgres:15-alpine
+    container_name: goship_db_tariff
+    environment:
+      POSTGRES_DB: db_logistics_tariff
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - db_tariff_data:/var/lib/postgresql/data
+    networks:
+      - goship-network
+
+  db_manifest:
+    image: postgres:15-alpine
+    container_name: goship_db_manifest
+    environment:
+      POSTGRES_DB: db_logistics_manifest
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5435:5432"
+    volumes:
+      - db_manifest_data:/var/lib/postgresql/data
+    networks:
+      - goship-network
+
+  db_courier:
+    image: postgres:15-alpine
+    container_name: goship_db_courier
+    environment:
+      POSTGRES_DB: db_logistics_courier
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5436:5432"
+    volumes:
+      - db_courier_data:/var/lib/postgresql/data
+    networks:
+      - goship-network
+
+  db_tracking:
+    image: postgres:15-alpine
+    container_name: goship_db_tracking
+    environment:
+      POSTGRES_DB: db_logistics_tracking
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5437:5432"
+    volumes:
+      - db_tracking_data:/var/lib/postgresql/data
+    networks:
+      - goship-network
+
+  # Services
+  auth-service:
+    build: ./services/auth-service
+    container_name: goship_auth_service
+    environment:
+      PORT: 4001
+      DB_HOST: db_auth
+      DB_PORT: 5432
+      DB_NAME: db_logistics_auth
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    ports:
+      - "4001:4001"
+    depends_on:
+      - db_auth
+    networks:
+      - goship-network
+
+  area-service:
+    build: ./services/area-service
+    container_name: goship_area_service
+    environment:
+      PORT: 4002
+      DB_HOST: db_area
+      DB_PORT: 5432
+      DB_NAME: db_logistics_area
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "4002:4002"
+    depends_on:
+      - db_area
+    networks:
+      - goship-network
+
+  tariff-service:
+    build: ./services/tariff-service
+    container_name: goship_tariff_service
+    environment:
+      PORT: 4003
+      DB_HOST: db_tariff
+      DB_PORT: 5432
+      DB_NAME: db_logistics_tariff
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "4003:4003"
+    depends_on:
+      - db_tariff
+    networks:
+      - goship-network
+
+  manifest-service:
+    build: ./services/manifest-service
+    container_name: goship_manifest_service
+    environment:
+      PORT: 4004
+      DB_HOST: db_manifest
+      DB_PORT: 5432
+      DB_NAME: db_logistics_manifest
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      MARKETPLACE_MODE: SIMULATION
+      AREA_SERVICE_URL: http://area-service:4002
+      TARIFF_SERVICE_URL: http://tariff-service:4003
+      TRACKING_SERVICE_URL: http://tracking-service:4006
+    ports:
+      - "4004:4004"
+    depends_on:
+      - db_manifest
+      - area-service
+      - tariff-service
+      - tracking-service
+    networks:
+      - goship-network
+
+  courier-service:
+    build: ./services/courier-service
+    container_name: goship_courier_service
+    environment:
+      PORT: 4005
+      DB_HOST: db_courier
+      DB_PORT: 5432
+      DB_NAME: db_logistics_courier
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "4005:4005"
+    depends_on:
+      - db_courier
+    networks:
+      - goship-network
+
+  tracking-service:
+    build: ./services/tracking-service
+    container_name: goship_tracking_service
+    environment:
+      PORT: 4006
+      DB_HOST: db_tracking
+      DB_PORT: 5432
+      DB_NAME: db_logistics_tracking
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "4006:4006"
+    depends_on:
+      - db_tracking
+    networks:
+      - goship-network
+
+  api-gateway:
+    build: ./services/api-gateway
+    container_name: goship_api_gateway
+    environment:
+      PORT: 4000
+      AUTH_SERVICE_URL: http://auth-service:4001
+      AREA_SERVICE_URL: http://area-service:4002
+      TARIFF_SERVICE_URL: http://tariff-service:4003
+      MANIFEST_SERVICE_URL: http://manifest-service:4004
+      COURIER_SERVICE_URL: http://courier-service:4005
+      TRACKING_SERVICE_URL: http://tracking-service:4006
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    ports:
+      - "4000:4000"
+    depends_on:
+      - auth-service
+      - area-service
+      - tariff-service
+      - manifest-service
+      - courier-service
+      - tracking-service
+    networks:
+      - goship-network
+
+  frontend:
+    build: ./frontend
+    container_name: goship_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - goship-network
+
+volumes:
+  db_auth_data:
+  db_area_data:
+  db_tariff_data:
+  db_manifest_data:
+  db_courier_data:
+  db_tracking_data:
+
+networks:
+  goship-network:
+    driver: bridge
+

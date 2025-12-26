@@ -1,0 +1,46 @@
+type Query {
+  trackingByResi(resiNumber: String!): Tracking!
+}
+
+type Mutation {
+  createTracking(
+    resiNumber: String!
+    orderId: ID!
+  ): Tracking!
+  
+  updateTrackingStatus(
+    resiNumber: String!
+    status: TrackingStatus!
+    description: String!
+    location: String!
+  ): Tracking!
+}
+
+type Tracking {
+  id: ID!
+  resiNumber: String!
+  orderId: ID!
+  currentStatus: TrackingStatus!
+  createdAt: String!
+  histories: [TrackingHistory!]!
+}
+
+type TrackingHistory {
+  id: ID!
+  status: TrackingStatus!
+  description: String!
+  location: String!
+  timestamp: String!
+}
+
+enum TrackingStatus {
+  CREATED
+  PICKED_UP
+  IN_TRANSIT
+  ARRIVED_AT_HUB
+  OUT_FOR_DELIVERY
+  DELIVERED
+}
+
+
+

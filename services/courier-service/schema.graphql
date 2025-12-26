@@ -1,0 +1,24 @@
+type Query {
+  couriers: [Courier!]!
+  courier(id: ID!): Courier
+}
+
+type Mutation {
+  createCourier(nama: String!, noHp: String!, kendaraan: String!): Courier!
+  updateCourier(id: ID!, nama: String, noHp: String, kendaraan: String, status: String): Courier!
+  deleteCourier(id: ID!): Boolean!
+}
+
+type Courier {
+  id: ID!
+  nama: String!
+  noHp: String!
+  kendaraan: String!
+  status: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+
+
+

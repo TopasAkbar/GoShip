@@ -1,0 +1,39 @@
+type Query {
+  calculateOngkir(kotaAsal: ID!, kotaTujuan: ID!, berat: Float!): OngkirResult!
+  getShippingOptions(kotaAsal: ID!, kotaTujuan: ID!, berat: Float!): [ShippingOption!]!
+}
+
+type Mutation {
+  createTariff(kotaAsal: ID!, kotaTujuan: ID!, metodePengiriman: String!, hargaPerKg: Float!, hargaMinimum: Float!): Tariff!
+}
+
+type OngkirResult {
+  totalOngkir: Float!
+  breakdown: [OngkirBreakdown!]!
+}
+
+type OngkirBreakdown {
+  metodePengiriman: String!
+  harga: Float!
+  estimasiHari: Int!
+}
+
+type ShippingOption {
+  metodePengiriman: String!
+  hargaOngkir: Float!
+  estimasiHari: Int!
+}
+
+type Tariff {
+  id: ID!
+  kotaAsal: ID!
+  kotaTujuan: ID!
+  metodePengiriman: String!
+  hargaPerKg: Float!
+  hargaMinimum: Float!
+  createdAt: String!
+}
+
+
+
+

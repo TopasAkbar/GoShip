@@ -1,0 +1,45 @@
+type Query {
+  shipments: [Shipment!]!
+  shipment(id: ID!): Shipment
+  shipmentByOrderId(orderId: ID!): Shipment
+}
+
+type Mutation {
+  createShipmentFromMarketplace(
+    orderId: ID!
+    alamatPengiriman: String!
+    alamatPenjemputan: String!
+    berat: Float!
+    kotaAsal: ID!
+    kotaTujuan: ID!
+  ): Shipment!
+  requestResi(orderId: ID!): ResiResponse!
+  updateShipmentStatus(id: ID!, status: String!): Shipment!
+}
+
+type Shipment {
+  id: ID!
+  orderId: ID!
+  nomorResi: String
+  alamatPengiriman: String!
+  alamatPenjemputan: String!
+  berat: Float!
+  kotaAsal: ID!
+  kotaTujuan: ID!
+  status: String!
+  ongkir: Float
+  metodePengiriman: String
+  createdAt: String!
+  updatedAt: String!
+}
+
+type ResiResponse {
+  success: Boolean!
+  nomorResi: String
+  status: String
+  message: String
+}
+
+
+
+

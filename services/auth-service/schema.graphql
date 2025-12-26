@@ -1,0 +1,26 @@
+type Query {
+  me: Admin
+}
+
+type Mutation {
+  login(username: String!, password: String!): AuthResponse
+  register(username: String!, password: String!): AuthResponse
+}
+
+type Admin {
+  id: ID!
+  username: String!
+  role: String!
+  createdAt: String!
+}
+
+type AuthResponse {
+  success: Boolean!
+  token: String
+  admin: Admin
+  message: String
+}
+
+
+
+

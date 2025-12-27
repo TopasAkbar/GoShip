@@ -1,4 +1,5 @@
 import { useQuery } from '@apollo/client';
+import { Link } from 'react-router-dom';
 import { GET_SHIPMENTS } from '../graphql/queries';
 
 function Dashboard() {
@@ -65,6 +66,9 @@ function Dashboard() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Ongkir
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -86,6 +90,18 @@ function Dashboard() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       Rp {shipment.ongkir?.toLocaleString('id-ID') || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      {shipment.nomorResi ? (
+                        <Link
+                          to={`/tracking?resi=${shipment.nomorResi}`}
+                          className="text-blue-600 hover:text-blue-900 font-semibold"
+                        >
+                          📦 Track
+                        </Link>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -291,22 +291,6 @@ const resolvers = {
       const data = await forwardRequest(TRACKING_SERVICE_URL, query, { resiNumber: args.resiNumber });
       return data.trackingByResi;
     },
-    trackingHistory: async (parent, args, context) => {
-      const query = `
-        query($nomorResi: String!) {
-          trackingHistory(nomorResi: $nomorResi) {
-            id
-            nomorResi
-            status
-            lokasi
-            keterangan
-            createdAt
-          }
-        }
-      `;
-      const data = await forwardRequest(TRACKING_SERVICE_URL, query, { nomorResi: args.nomorResi });
-      return data.trackingHistory;
-    },
   },
   Mutation: {
     // Auth

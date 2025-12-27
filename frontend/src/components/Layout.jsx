@@ -13,7 +13,6 @@ function Layout({ setIsAuthenticated }) {
     { path: '/simulate-order', label: 'Simulasi Order' },
     { path: '/check-ongkir', label: 'Cek Ongkir' },
     { path: '/request-resi', label: 'Request Resi' },
-    { path: '/update-tracking', label: 'Update Tracking' },
     { path: '/tracking', label: 'Tracking' },
   ];
 

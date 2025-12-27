@@ -76,11 +76,10 @@ export const CREATE_TRACKING = gql`
   }
 `;
 
-// PERBAIKAN UTAMA DISINI: Menggunakan String! untuk status
 export const UPDATE_TRACKING_STATUS = gql`
   mutation UpdateTrackingStatus(
     $resiNumber: String!
-    $status: String! 
+    $status: TrackingStatus!
     $description: String!
     $location: String!
   ) {
@@ -94,6 +93,7 @@ export const UPDATE_TRACKING_STATUS = gql`
       resiNumber
       orderId
       currentStatus
+      createdAt
       histories {
         id
         status

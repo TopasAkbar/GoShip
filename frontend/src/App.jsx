@@ -7,7 +7,6 @@ import Dashboard from './pages/Dashboard';
 import SimulateOrder from './pages/SimulateOrder';
 import CheckOngkir from './pages/CheckOngkir';
 import RequestResi from './pages/RequestResi';
-import UpdateTracking from './pages/UpdateTracking';
 import Tracking from './pages/Tracking';
 import { useState, useEffect } from 'react';
 
@@ -58,7 +57,6 @@ function App() {
             <Route path="simulate-order" element={<SimulateOrder />} />
             <Route path="check-ongkir" element={<CheckOngkir />} />
             <Route path="request-resi" element={<RequestResi />} />
-            <Route path="update-tracking" element={<UpdateTracking />} />
             <Route path="tracking" element={<Tracking />} />
           </Route>
         </Routes>
@@ -68,7 +66,3 @@ function App() {
 }
 
 export default App;
-
-
-
-

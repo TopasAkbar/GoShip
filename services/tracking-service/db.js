@@ -33,14 +33,20 @@ async function initDB() {
       )
     `);
 
-    // Create index for faster queries
+    // Create index for faster queries (after tables are created)
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_tracking_resi ON tracking(resi_number)
-    `);
+    `).catch(err => {
+      // Index might already exist or table structure issue
+      console.warn('Index creation warning (idx_tracking_resi):', err.message);
+    });
 
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_tracking_history_tracking_id ON tracking_history(tracking_id)
-    `);
+    `).catch(err => {
+      // Index might already exist or table structure issue
+      console.warn('Index creation warning (idx_tracking_history_tracking_id):', err.message);
+    });
 
     console.log('✅ Tracking Service: Database initialized');
   } catch (error) {

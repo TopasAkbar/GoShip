@@ -218,6 +218,12 @@ services:
       - manifest-service
       - courier-service
       - tracking-service
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)}).on('error', () => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - goship-network
 
@@ -242,4 +248,3 @@ volumes:
 networks:
   goship-network:
     driver: bridge
-

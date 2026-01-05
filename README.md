@@ -76,6 +76,8 @@ http://localhost:4000/graphql
 ## 🧪 Dokumentasi API (GraphQL)
 
 ### 1️⃣ Public Tracking (Cek Resi)
+**Tujuan:** Melihat status terkini paket berdasarkan Nomor Resi.
+* **Contoh Resi:** Gunakan resi dari transaksi Marketplace (misal: `GS29255143520`).
 
 ```graphql
 query LacakPaket {

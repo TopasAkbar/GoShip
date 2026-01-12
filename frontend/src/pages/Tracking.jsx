@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@apollo/client';
+import { useQuery, useMutation, useLazyQuery } from '@apollo/client';
 import { useSearchParams } from 'react-router-dom';
-import { GET_TRACKING } from '../graphql/queries';
+import { GET_TRACKING, GET_SHIPMENT_BY_ORDER_ID, GET_COURIERS } from '../graphql/queries'; // Tambah GET_SHIPMENT & GET_COURIERS
 import { UPDATE_TRACKING_STATUS } from '../graphql/mutations';
 
 // Status mapping ke Bahasa Indonesia
@@ -46,39 +46,70 @@ function Tracking() {
   const [resiInput, setResiInput] = useState('');
   const [form, setForm] = useState({ status: '', location: '', description: '' });
   const [msg, setMsg] = useState(null);
+  
+  // State untuk nama kurir
+  const [courierName, setCourierName] = useState('-');
 
   const resiUrl = searchParams.get('resi') || '';
 
-  // Query dengan polling setiap 10 detik untuk auto-refresh (berguna untuk simulation mode)
+  // 1. Query Tracking Utama
   const { data, loading, error, refetch } = useQuery(GET_TRACKING, {
     variables: { resiNumber: resiUrl },
     skip: !resiUrl,
-    pollInterval: resiUrl ? 10000 : 0, // Poll setiap 10 detik jika ada resi
-    fetchPolicy: 'network-and-cache', // Always check for updates
+    pollInterval: resiUrl ? 10000 : 0, 
+    fetchPolicy: 'network-and-cache',
   });
 
+  // 2. Lazy Query untuk Ambil Detail Shipment (Butuh Order ID dari hasil tracking)
+  const [getShipment, { data: shipmentData }] = useLazyQuery(GET_SHIPMENT_BY_ORDER_ID);
+
+  // 3. Query Ambil Semua Kurir (Untuk mencocokkan ID ke Nama)
+  const { data: couriersData } = useQuery(GET_COURIERS);
+
+  // Mutation Update Status
   const [updateStatus, { loading: updating }] = useMutation(UPDATE_TRACKING_STATUS, {
     onCompleted: () => {
       setMsg({ type: 'success', text: '✅ Status berhasil diperbarui!' });
       setForm({ status: '', location: '', description: '' });
-      refetch(); // Refresh data setelah update
+      refetch(); 
     },
     onError: (err) => {
       setMsg({ type: 'error', text: `❌ ${err.message}` });
     },
   });
 
+  // Efek 1: Sync Input dengan URL
   useEffect(() => {
     if (resiUrl) {
       setResiInput(resiUrl);
     }
   }, [resiUrl]);
 
+  // Efek 2: Saat data Tracking ada, ambil data Shipment menggunakan Order ID
+  useEffect(() => {
+    if (data?.trackingByResi?.orderId) {
+        getShipment({ variables: { orderId: data.trackingByResi.orderId } });
+    }
+  }, [data, getShipment]);
+
+  // Efek 3: Saat data Shipment & Kurir ada, cari nama kurirnya
+  useEffect(() => {
+    if (shipmentData?.shipmentByOrderId?.courierId && couriersData?.couriers) {
+        const found = couriersData.couriers.find(c => c.id === shipmentData.shipmentByOrderId.courierId);
+        if (found) {
+            setCourierName(found.nama);
+        }
+    } else {
+        setCourierName('-');
+    }
+  }, [shipmentData, couriersData]);
+
   const handleSearch = (e) => {
     e.preventDefault();
     if (resiInput) {
       setSearchParams({ resi: resiInput.trim().toUpperCase() });
       setMsg(null);
+      setCourierName('-'); // Reset nama kurir saat search baru
     }
   };
 
@@ -103,7 +134,7 @@ function Tracking() {
     if (!tracking) return STATUS_OPTIONS;
     const currentIndex = STATUS_ORDER.indexOf(tracking.currentStatus);
     if (currentIndex < 0 || currentIndex >= STATUS_ORDER.length - 1) return [];
-    // Return max 2 next statuses (sesuai validasi backend)
+    
     const nextStatuses = STATUS_ORDER.slice(currentIndex + 1, currentIndex + 3);
     return STATUS_OPTIONS.filter(opt => nextStatuses.includes(opt.value));
   };
@@ -184,6 +215,19 @@ function Tracking() {
                     {new Date(tracking.createdAt).toLocaleDateString('id-ID')}
                   </p>
                 </div>
+                
+                {/* --- [BARU] Menampilkan Nama Kurir --- */}
+                <div className="col-span-2 mt-2 pt-2 border-t border-dashed">
+                    <p className="text-xs text-gray-500 mb-1">Kurir Pengirim</p>
+                    <p className={`font-bold text-lg ${courierName !== '-' ? 'text-blue-700' : 'text-gray-400'}`}>
+                        {courierName !== '-' ? (
+                            <span className="flex items-center gap-2">
+                                🚚 {courierName}
+                            </span>
+                        ) : 'Menunggu Info Kurir...'}
+                    </p>
+                </div>
+
               </div>
               <div className="mt-4 pt-4 border-t">
                 <p className="text-xs text-gray-500 mb-2">Status Saat Ini</p>

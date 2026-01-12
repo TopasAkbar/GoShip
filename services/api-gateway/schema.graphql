@@ -114,7 +114,9 @@ extend type Mutation {
     berat: Float!
     kotaAsal: ID!
     kotaTujuan: ID!
+    courierId: ID   # <--- UPDATE: Parameter ini telah ditambahkan
   ): Shipment!
+
   requestResi(orderId: ID!): ResiResponse!
   updateShipmentStatus(id: ID!, status: String!): Shipment!
 }
@@ -174,7 +176,7 @@ extend type Mutation {
     resiNumber: String!
     orderId: ID!
   ): Tracking!
-  
+   
   updateTrackingStatus(
     resiNumber: String!
     status: TrackingStatus!
@@ -208,6 +210,3 @@ enum TrackingStatus {
   OUT_FOR_DELIVERY
   DELIVERED
 }
-
-
-

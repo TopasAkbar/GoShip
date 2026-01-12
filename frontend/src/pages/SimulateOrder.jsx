@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import { CREATE_SHIPMENT } from '../graphql/mutations';
-import { GET_PROVINSI, GET_KOTA } from '../graphql/queries';
+import { GET_PROVINSI, GET_KOTA, GET_COURIERS } from '../graphql/queries'; // Tambah GET_COURIERS
 
 function SimulateOrder() {
   const [orderId, setOrderId] = useState('');
@@ -12,9 +12,17 @@ function SimulateOrder() {
   const [kotaAsal, setKotaAsal] = useState('');
   const [provinsiTujuan, setProvinsiTujuan] = useState('');
   const [kotaTujuan, setKotaTujuan] = useState('');
+  
+  // [BARU] State untuk Kurir
+  const [courierId, setCourierId] = useState('');
+  
   const [message, setMessage] = useState('');
 
   const { data: provinsiData } = useQuery(GET_PROVINSI);
+  
+  // [BARU] Ambil data kurir
+  const { data: courierData } = useQuery(GET_COURIERS);
+
   const { data: kotaAsalData } = useQuery(GET_KOTA, {
     variables: { provinsiId: provinsiAsal },
     skip: !provinsiAsal,
@@ -27,11 +35,12 @@ function SimulateOrder() {
   const [createShipment, { loading }] = useMutation(CREATE_SHIPMENT, {
     refetchQueries: ['GetShipments'],
     onCompleted: (data) => {
-      setMessage(`✅ Order berhasil dibuat! ID: ${data.createShipmentFromMarketplace.orderId}`);
+      setMessage(`✅ Order berhasil dibuat! ID: ${data.createShipmentFromMarketplace.orderId} | Resi: ${data.createShipmentFromMarketplace.nomorResi}`);
       setOrderId('');
       setAlamatPenjemputan('');
       setAlamatPengiriman('');
       setBerat('');
+      setCourierId(''); // Reset kurir
     },
     onError: (error) => {
       setMessage(`❌ Error: ${error.message}`);
@@ -47,6 +56,11 @@ function SimulateOrder() {
       return;
     }
 
+    if (!courierId) {
+        setMessage('❌ Harap pilih kurir pengirim');
+        return;
+    }
+
     try {
       await createShipment({
         variables: {
@@ -56,6 +70,7 @@ function SimulateOrder() {
           berat: parseFloat(berat) || Math.random() * 9 + 1,
           kotaAsal,
           kotaTujuan,
+          courierId: courierId, // [BARU] Kirim ID kurir
         },
       });
     } catch (error) {
@@ -92,6 +107,24 @@ function SimulateOrder() {
                 onChange={(e) => setBerat(e.target.value)}
               />
             </div>
+          </div>
+
+          {/* [BARU] Dropdown Pilihan Kurir */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Pilih Kurir Pengirim</label>
+            <select
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={courierId}
+                onChange={(e) => setCourierId(e.target.value)}
+                required
+            >
+                <option value="">-- Pilih Kurir --</option>
+                {courierData?.couriers?.map((c) => (
+                    <option key={c.id} value={c.id}>
+                        {c.nama} ({c.status})
+                    </option>
+                ))}
+            </select>
           </div>
 
           <div>
@@ -222,7 +255,3 @@ function SimulateOrder() {
 }
 
 export default SimulateOrder;
-
-
-
-

@@ -413,10 +413,12 @@ const resolvers = {
       }, context.token);
       return data.createTariff;
     },
+    
     // Manifest
     createShipmentFromMarketplace: async (parent, args, context) => {
+      // --- UPDATE PENTING: Tambahkan $courierId di query dan variabel ---
       const query = `
-        mutation($orderId: ID!, $alamatPengiriman: String!, $alamatPenjemputan: String!, $berat: Float!, $kotaAsal: ID!, $kotaTujuan: ID!) {
+        mutation($orderId: ID!, $alamatPengiriman: String!, $alamatPenjemputan: String!, $berat: Float!, $kotaAsal: ID!, $kotaTujuan: ID!, $courierId: ID) {
           createShipmentFromMarketplace(
             orderId: $orderId
             alamatPengiriman: $alamatPengiriman
@@ -424,6 +426,7 @@ const resolvers = {
             berat: $berat
             kotaAsal: $kotaAsal
             kotaTujuan: $kotaTujuan
+            courierId: $courierId  # <--- Dikirim ke Manifest Service
           ) {
             id
             orderId
@@ -448,9 +451,11 @@ const resolvers = {
         berat: args.berat,
         kotaAsal: args.kotaAsal,
         kotaTujuan: args.kotaTujuan,
+        courierId: args.courierId, // <--- Variabel dari request client
       }, context.token);
       return data.createShipmentFromMarketplace;
     },
+
     requestResi: async (parent, args, context) => {
       if (!context.user) throw new Error('Unauthorized');
       const query = `
@@ -614,6 +619,3 @@ const resolvers = {
 };
 
 module.exports = resolvers;
-
-
-

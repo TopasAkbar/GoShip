@@ -12,7 +12,9 @@ type Mutation {
     berat: Float!
     kotaAsal: ID!
     kotaTujuan: ID!
+    courierId: ID  # <--- [BARU] Parameter tambahan untuk validasi kurir
   ): Shipment!
+
   requestResi(orderId: ID!): ResiResponse!
   updateShipmentStatus(id: ID!, status: String!): Shipment!
 }
@@ -39,7 +41,3 @@ type ResiResponse {
   status: String
   message: String
 }
-
-
-
-

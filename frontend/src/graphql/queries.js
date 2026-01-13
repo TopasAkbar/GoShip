@@ -81,5 +81,13 @@ export const GET_TRACKING = gql`
   }
 `;
 
-
-
+// --- [BARU] Query untuk Dropdown Kurir ---
+export const GET_COURIERS = gql`
+  query GetCouriers {
+    couriers {
+      id
+      nama
+      status
+    }
+  }
+`;

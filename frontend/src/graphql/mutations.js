@@ -23,6 +23,7 @@ export const CREATE_SHIPMENT = gql`
     $berat: Float!
     $kotaAsal: ID!
     $kotaTujuan: ID!
+    $courierId: ID  # <--- [BARU] Variable definition
   ) {
     createShipmentFromMarketplace(
       orderId: $orderId
@@ -31,6 +32,7 @@ export const CREATE_SHIPMENT = gql`
       berat: $berat
       kotaAsal: $kotaAsal
       kotaTujuan: $kotaTujuan
+      courierId: $courierId # <--- [BARU] Dikirim ke Backend
     ) {
       id
       orderId

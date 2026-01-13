@@ -1,9 +1,13 @@
 const { pool, generateResi } = require('./db');
 const axios = require('axios');
 
-const AREA_SERVICE_URL = process.env.AREA_SERVICE_URL || 'http://localhost:4002';
-const TARIFF_SERVICE_URL = process.env.TARIFF_SERVICE_URL || 'http://localhost:4003';
-const TRACKING_SERVICE_URL = process.env.TRACKING_SERVICE_URL || 'http://localhost:4006';
+// --- PERBAIKAN URL SERVICE ---
+// Menggunakan nama service Docker (courier-service) bukan localhost
+// Pastikan portnya 4005 (port default courier-service), bukan 4004 (port manifest)
+const AREA_SERVICE_URL = process.env.AREA_SERVICE_URL || 'http://area-service:4002';
+const TARIFF_SERVICE_URL = process.env.TARIFF_SERVICE_URL || 'http://tariff-service:4003';
+const TRACKING_SERVICE_URL = process.env.TRACKING_SERVICE_URL || 'http://tracking-service:4006';
+const COURIER_SERVICE_URL = process.env.COURIER_SERVICE_URL || 'http://courier-service:4005'; 
 const MARKETPLACE_MODE = process.env.MARKETPLACE_MODE || 'SIMULATION';
 
 const resolvers = {
@@ -68,10 +72,61 @@ const resolvers = {
     },
   },
   Mutation: {
-    // --- PERBAIKAN UTAMA ADA DI SINI ---
-    createShipmentFromMarketplace: async (parent, { orderId, alamatPengiriman, alamatPenjemputan, berat, kotaAsal, kotaTujuan }) => {
+    createShipmentFromMarketplace: async (parent, { orderId, alamatPengiriman, alamatPenjemputan, berat, kotaAsal, kotaTujuan, courierId }) => {
       try {
-        // 1. Hitung Ongkir (Sama seperti sebelumnya)
+        
+        // ---------------------------------------------------------
+        // 1. CEK KONEKSI KE COURIER SERVICE & STATUS KURIR
+        // ---------------------------------------------------------
+        if (courierId) {
+            console.log(`🔍 Memeriksa status kurir ID: ${courierId} ke Courier Service (${COURIER_SERVICE_URL})...`);
+            try {
+                const courierResponse = await axios.post(`${COURIER_SERVICE_URL}/graphql`, {
+                    query: `
+                        query CekStatusKurir($id: ID!) {
+                            courier(id: $id) {
+                                id
+                                nama
+                                status
+                            }
+                        }
+                    `,
+                    variables: { id: courierId }
+                });
+
+                // Periksa apakah ada errors dari GraphQL (misal ID tidak ketemu)
+                if (courierResponse.data.errors) {
+                    throw new Error(courierResponse.data.errors[0].message);
+                }
+
+                const courierData = courierResponse.data.data?.courier;
+
+                // Validasi: Apakah kurir ditemukan?
+                if (!courierData) {
+                    throw new Error(`Kurir dengan ID ${courierId} tidak ditemukan.`);
+                }
+
+                // Validasi: Apakah status kurir Aktif/Available?
+                const validStatuses = ['AVAILABLE', 'AKTIF', 'IDLE'];
+                if (!validStatuses.includes(courierData.status)) { 
+                    throw new Error(`Kurir ${courierData.nama} sedang tidak aktif (Status: ${courierData.status}).`);
+                }
+
+                console.log(`✅ Kurir Valid: ${courierData.nama} (Status: ${courierData.status}) siap menjemput.`);
+
+            } catch (err) {
+                // Jika errornya karena koneksi putus (Service Mati atau Salah URL)
+                if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+                    console.error("Connection Error Detail:", err.message);
+                    throw new Error(`🚨 Gagal menghubungi Courier Service di ${COURIER_SERVICE_URL}. Pastikan service aktif dan URL benar.`);
+                }
+                throw err;
+            }
+        }
+
+        // ---------------------------------------------------------
+        // 2. Hitung Ongkir
+        // ---------------------------------------------------------
         let ongkir = 0;
         let metodePengiriman = 'REGULER';
         try {
@@ -91,15 +146,18 @@ const resolvers = {
             metodePengiriman = option.metodePengiriman;
           }
         } catch (error) {
-          console.error('Error calculating ongkir:', error.message);
+          console.error('Error calculating ongkir (menggunakan default):', error.message);
           ongkir = Math.max(berat * 5000, 10000);
         }
 
-        // 2. [FIX] GENERATE RESI LANGSUNG DI SINI
+        // ---------------------------------------------------------
+        // 3. Generate Resi
+        // ---------------------------------------------------------
         const nomorResi = generateResi();
 
-        // 3. [FIX] INSERT KE DB DENGAN NOMOR RESI & STATUS 'PICKUP'
-        // Menambahkan kolom nomor_resi di query INSERT
+        // ---------------------------------------------------------
+        // 4. Insert ke DB
+        // ---------------------------------------------------------
         const { rows } = await pool.query(
           `INSERT INTO shipments (order_id, alamat_pengiriman, alamat_penjemputan, berat, kota_asal_id, kota_tujuan_id, status, ongkir, metode_pengiriman, nomor_resi, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP) RETURNING *`,
@@ -108,8 +166,9 @@ const resolvers = {
 
         const shipment = rows[0];
 
-        // 4. [FIX] BUAT TRACKING DI TRACKING SERVICE (Agar bisa dilacak)
-        // Kita pindahkan logika tracking ke sini agar konsisten
+        // ---------------------------------------------------------
+        // 5. Buat Tracking di Tracking Service
+        // ---------------------------------------------------------
         try {
           await axios.post(`${TRACKING_SERVICE_URL}/graphql`, {
             query: `
@@ -128,14 +187,12 @@ const resolvers = {
           });
         } catch (error) {
           console.error('Error creating tracking:', error.message);
-          // Lanjut saja meski tracking gagal, yang penting resi sudah ada
         }
 
-        // Return Data Lengkap dengan Resi
         return {
           id: shipment.id.toString(),
           orderId: shipment.order_id,
-          nomorResi: shipment.nomor_resi, // [FIX] Sekarang ini ada isinya!
+          nomorResi: shipment.nomor_resi,
           alamatPengiriman: shipment.alamat_pengiriman,
           alamatPenjemputan: shipment.alamat_penjemputan,
           berat: parseFloat(shipment.berat),
@@ -150,8 +207,6 @@ const resolvers = {
 
       } catch (error) {
         if (error.code === '23505') {
-          // Jika Duplicate Order ID, kita coba ambil data yang sudah ada (Recovery)
-          // Ini berguna untuk mengatasi masalah "Double Callback"
           console.log("⚠️ Order ID exists. Fetching existing data...");
           const { rows } = await pool.query('SELECT * FROM shipments WHERE order_id = $1', [orderId]);
           if(rows.length > 0) {
@@ -179,8 +234,6 @@ const resolvers = {
     },
 
     requestResi: async (parent, { orderId }) => {
-      // Fungsi ini tetap ada untuk backward compatibility
-      // Tapi sebenarnya sudah tidak diperlukan jika createShipmentFromMarketplace sudah menghasilkan resi
       const { rows } = await pool.query('SELECT * FROM shipments WHERE order_id = $1', [orderId]);
       
       if (rows.length === 0) {
@@ -203,8 +256,6 @@ const resolvers = {
         'UPDATE shipments SET nomor_resi = $1, status = $2, updated_at = CURRENT_TIMESTAMP WHERE order_id = $3 RETURNING *',
         [nomorResi, 'PICKUP', orderId]
       );
-
-      // Create tracking logic here too... (omitted for brevity as it's redundant now)
 
       return {
         success: true,

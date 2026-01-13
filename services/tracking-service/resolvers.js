@@ -1,8 +1,8 @@
 const { pool } = require('./db');
+const fetch = require('node-fetch');
 
 const STATUS_ORDER = ['CREATED', 'PICKED_UP', 'IN_TRANSIT', 'ARRIVED_AT_HUB', 'OUT_FOR_DELIVERY', 'DELIVERED'];
 
-// Default descriptions untuk setiap status
 const STATUS_DESCRIPTIONS = {
   CREATED: 'Paket telah dibuat dan siap untuk dijemput',
   PICKED_UP: 'Paket telah diambil oleh kurir',
@@ -12,7 +12,6 @@ const STATUS_DESCRIPTIONS = {
   DELIVERED: 'Paket telah diterima oleh penerima'
 };
 
-// Default locations untuk setiap status
 const STATUS_LOCATIONS = {
   CREATED: 'Gudang Pusat',
   PICKED_UP: 'Gudang Pusat',
@@ -22,21 +21,52 @@ const STATUS_LOCATIONS = {
   DELIVERED: 'Alamat Tujuan'
 };
 
+const MANIFEST_SERVICE_URL =
+  process.env.MANIFEST_SERVICE_URL || 'http://manifest-service:4005/graphql';
+
+async function validateResiFromManifest(resiNumber) {
+  const query = `
+    query GetManifest($resiNumber: String!) {
+      manifestByResi(resiNumber: $resiNumber) {
+        id
+        resiNumber
+      }
+    }
+  `;
+
+  const response = await fetch(MANIFEST_SERVICE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query,
+      variables: { resiNumber },
+    }),
+  });
+
+  const result = await response.json();
+
+  if (result.errors || !result.data || !result.data.manifestByResi) {
+    throw new Error(`Resi number ${resiNumber} tidak valid di manifest service`);
+  }
+
+  return result.data.manifestByResi;
+}
+
 function isValidStatusTransition(currentStatus, newStatus) {
   // Tidak boleh update jika sudah DELIVERED
   if (currentStatus === 'DELIVERED') {
     return false;
   }
-  
+
   const currentIndex = STATUS_ORDER.indexOf(currentStatus);
   const newIndex = STATUS_ORDER.indexOf(newStatus);
-  
+
   // Tidak boleh mundur
   if (newIndex <= currentIndex) return false;
-  
+
   // Tidak boleh lompat lebih dari 2 langkah
   if (newIndex - currentIndex > 2) return false;
-  
+
   return true;
 }
 
@@ -44,9 +74,10 @@ const resolvers = {
   Query: {
     trackingByResi: async (parent, { resiNumber }) => {
       const cleanResi = resiNumber.trim().toUpperCase();
+
       // Query untuk tracking utama
       const { rows: trackingRows } = await pool.query(
-        `SELECT * FROM tracking WHERE UPPER(nomor_resi) = $1`,
+        `SELECT * FROM tracking WHERE UPPER(resi_number) = $1`,
         [cleanResi]
       );
 
@@ -55,73 +86,77 @@ const resolvers = {
       }
 
       const tracking = trackingRows[0];
-      
-      // Query untuk history berdasarkan nomor_resi
+
+      // Query untuk history berdasarkan tracking_id
       const { rows: historyRows } = await pool.query(
-        `SELECT * FROM tracking_history 
-         WHERE UPPER(nomor_resi) = $1 
-         ORDER BY created_at ASC`,
-        [cleanResi]
+        `SELECT * FROM tracking_history
+         WHERE tracking_id = $1
+         ORDER BY timestamp ASC`,
+        [tracking.id]
       );
 
       return {
         id: tracking.id.toString(),
-        resiNumber: tracking.nomor_resi,
-        orderId: tracking.id.toString(), // Fallback karena tidak ada order_id di schema
-        currentStatus: tracking.status,
-        createdAt: tracking.created_at ? new Date(tracking.created_at).toISOString() : new Date().toISOString(),
+        resiNumber: tracking.resi_number,
+        orderId: tracking.order_id,
+        currentStatus: tracking.current_status,
+        createdAt: tracking.created_at
+          ? new Date(tracking.created_at).toISOString()
+          : new Date().toISOString(),
         histories: historyRows.map(h => ({
           id: h.id.toString(),
           status: h.status,
-          description: h.keterangan || '',
-          location: h.lokasi || '',
-          timestamp: h.created_at ? new Date(h.created_at).toISOString() : new Date().toISOString(),
+          description: h.description || '',
+          location: h.location || '',
+          timestamp: h.timestamp
+            ? new Date(h.timestamp).toISOString()
+            : new Date().toISOString(),
         })),
       };
     },
   },
+
   Mutation: {
     createTracking: async (parent, { resiNumber, orderId }) => {
       const cleanResi = resiNumber.trim().toUpperCase();
       const client = await pool.connect();
-      
+
       try {
+        // 1) Validasi ke manifest service dulu
+        await validateResiFromManifest(cleanResi);
+
         await client.query('BEGIN');
-        
-        // Check if tracking already exists
+
+        // 2) Check if tracking already exists
         const checkRes = await client.query(
-          'SELECT id FROM tracking WHERE UPPER(nomor_resi) = $1',
+          'SELECT id FROM tracking WHERE UPPER(resi_number) = $1',
           [cleanResi]
         );
-        
+
         if (checkRes.rows.length > 0) {
           throw new Error(`Tracking dengan resi number ${cleanResi} sudah ada`);
         }
-        
-        // Insert tracking dengan status CREATED (menggunakan schema yang ada)
+
+        // 3) Insert tracking dengan status CREATED
         const { rows } = await client.query(
-          `INSERT INTO tracking (nomor_resi, status, lokasi, keterangan) 
-           VALUES ($1, 'CREATED', $2, $3) 
+          `INSERT INTO tracking (resi_number, order_id, current_status)
+           VALUES ($1, $2, 'CREATED')
            RETURNING *`,
-          [cleanResi, STATUS_LOCATIONS.CREATED, STATUS_DESCRIPTIONS.CREATED]
+          [cleanResi, orderId]
         );
-        
+
         const tracking = rows[0];
-        
-        // Otomatis buat history pertama dengan timestamp dari server
+
+        // 4) Otomatis buat history pertama
         await client.query(
-          `INSERT INTO tracking_history (nomor_resi, status, lokasi, keterangan) 
+          `INSERT INTO tracking_history (tracking_id, status, description, location)
            VALUES ($1, 'CREATED', $2, $3)`,
-          [
-            cleanResi,
-            STATUS_LOCATIONS.CREATED,
-            STATUS_DESCRIPTIONS.CREATED
-          ]
+          [tracking.id, STATUS_DESCRIPTIONS.CREATED, STATUS_LOCATIONS.CREATED]
         );
-        
+
         await client.query('COMMIT');
-        
-        // Return tracking dengan histories
+
+        // 5) Return tracking dengan histories via query existing
         return await resolvers.Query.trackingByResi(null, { resiNumber: cleanResi });
       } catch (error) {
         await client.query('ROLLBACK');
@@ -130,60 +165,58 @@ const resolvers = {
         client.release();
       }
     },
-    
+
     updateTrackingStatus: async (parent, { resiNumber, status, description, location }) => {
       const cleanResi = resiNumber.trim().toUpperCase();
       const client = await pool.connect();
-      
+
       try {
         await client.query('BEGIN');
-        
+
         // Get current tracking
         const { rows } = await client.query(
-          'SELECT * FROM tracking WHERE UPPER(nomor_resi) = $1 FOR UPDATE',
+          'SELECT * FROM tracking WHERE UPPER(resi_number) = $1 FOR UPDATE',
           [cleanResi]
         );
-        
+
         if (rows.length === 0) {
           throw new Error(`Tracking not found for resi number: ${resiNumber}`);
         }
 
         const currentTracking = rows[0];
-        
+
         // Validasi status transition
-        if (!isValidStatusTransition(currentTracking.status, status)) {
+        if (!isValidStatusTransition(currentTracking.current_status, status)) {
           throw new Error(
-            `Invalid status transition from ${currentTracking.status} to ${status}. ` +
-            `Status tidak boleh mundur atau lompat lebih dari 2 langkah.`
+            `Invalid status transition from ${currentTracking.current_status} to ${status}. ` +
+              `Status tidak boleh mundur atau lompat lebih dari 2 langkah.`
           );
         }
-        
-        // Update status (menggunakan schema yang ada)
+
+        // Update status
         await client.query(
-          `UPDATE tracking SET status = $1, lokasi = $2, keterangan = $3 WHERE id = $4`,
+          `UPDATE tracking SET current_status = $1 WHERE id = $2`,
           [
             status,
-            location || STATUS_LOCATIONS[status] || 'Unknown location',
-            description || STATUS_DESCRIPTIONS[status] || 'Status updated',
-            currentTracking.id
+            currentTracking.id,
           ]
         );
-        
-        // Insert history baru dengan timestamp dari server (DEFAULT CURRENT_TIMESTAMP)
+
+        // Insert history baru
         await client.query(
-          `INSERT INTO tracking_history (nomor_resi, status, lokasi, keterangan) 
+          `INSERT INTO tracking_history (tracking_id, status, description, location)
            VALUES ($1, $2, $3, $4)`,
           [
-            cleanResi,
+            currentTracking.id,
             status,
+            description || STATUS_DESCRIPTIONS[status] || 'Status updated',
             location || STATUS_LOCATIONS[status] || 'Unknown location',
-            description || STATUS_DESCRIPTIONS[status] || 'Status updated'
           ]
         );
-        
+
         await client.query('COMMIT');
-        
-        // Return updated tracking dengan histories
+
+        // Return updated tracking
         return await resolvers.Query.trackingByResi(null, { resiNumber: cleanResi });
       } catch (error) {
         await client.query('ROLLBACK');
